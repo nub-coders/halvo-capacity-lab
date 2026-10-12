@@ -111,7 +111,7 @@ Path('/opt/halvo-fixtures/markupsafe-source.json').write_text(json.dumps({
 PY
 if [ "$lab_kind" = qemu ]; then
   # Entirely inside the guest. Never mount quota images on the live host.
-  mkdir -p /var/lib/halvo-lab /quota
+  mkdir -p /var/lib/halvo-lab /quota /srv/halvo-lab
   if [ ! -f /var/lib/halvo-lab/quota.img ]; then
     truncate -s 1G /var/lib/halvo-lab/quota.img
     mkfs.xfs -q /var/lib/halvo-lab/quota.img
