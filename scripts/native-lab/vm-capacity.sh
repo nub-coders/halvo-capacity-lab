@@ -287,12 +287,25 @@ copy_payload
 sha256sum "${payload[@]/#/$source_dir/}" > "$result_dir/provision-sources.sha256"
 printf 'Provisioning only inside the disposable guest.\n'
 provision_status=0
+full_provision() {
+  timeout --kill-after=10s "$provision_outer" ssh "${ssh_args[@]}" \
+    "sudo timeout --kill-after=10s $provision_inner bash /opt/halvo-lab/provision.sh" \
+    > "$result_dir/provision.log" 2>&1
+}
 if "$resume"; then
-  ssh_guest 'sudo bash /opt/halvo-lab/provision.sh --check' > "$result_dir/provision.log" 2>&1 || provision_status=$?
+  # A pre-provisioned reference clone passes --check instantly. A fresh guest
+  # (e.g. an ephemeral CI runner with no pre-built reference) does not, so fall
+  # back to a full deterministic provision from the pinned sources, then verify.
+  if ssh_guest 'sudo bash /opt/halvo-lab/provision.sh --check' > "$result_dir/provision.log" 2>&1; then
+    :
+  else
+    full_provision || provision_status=$?
+    if [ "$provision_status" = 0 ]; then
+      ssh_guest 'sudo bash /opt/halvo-lab/provision.sh --check' >> "$result_dir/provision.log" 2>&1 || provision_status=$?
+    fi
+  fi
 else
-timeout --kill-after=10s "$provision_outer" ssh "${ssh_args[@]}" \
-  "sudo timeout --kill-after=10s $provision_inner bash /opt/halvo-lab/provision.sh" \
-  > "$result_dir/provision.log" 2>&1 || provision_status=$?
+  full_provision || provision_status=$?
 fi
 if [ "$provision_status" != 0 ]; then
   echo "Guest provisioning failed ($provision_status); see $result_dir/provision.log" >&2

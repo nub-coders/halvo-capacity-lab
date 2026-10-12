@@ -73,10 +73,9 @@ jobs:
       - name: Stash native results (logs always, then validate report)
         if: always()
         run: |
-          d=$(ls -1d "${LAB}-native"/results/* 2>/dev/null | tail -n1)
-          [ -n "$d" ] && sudo cp -r "$d" "artifacts/rep${{ matrix.rep }}-native-results" || true
+          sudo cp -r "${LAB}-native/results" "artifacts/rep${{ matrix.rep }}-native-results" 2>/dev/null || true
           sudo chown -R "$(id -u):$(id -g)" artifacts || true
-          r=$(ls -1 "${LAB}-native"/results/*/capacity-external.json 2>/dev/null | tail -n1)
+          r=$(ls -1 "artifacts/rep${{ matrix.rep }}-native-results"/*/capacity-external.json 2>/dev/null | tail -n1)
           test -n "$r" || { echo "no native report produced (see uploaded *-native-results logs)"; exit 1; }
           python3 scripts/native-lab/capacity_external_validate.py "$r"
           cp "$r" "artifacts/rep${{ matrix.rep }}-native.json"
@@ -88,10 +87,9 @@ jobs:
       - name: Stash docker results (logs always, then validate report)
         if: always()
         run: |
-          d=$(ls -1d "${LAB}-docker"/results/* 2>/dev/null | tail -n1)
-          [ -n "$d" ] && sudo cp -r "$d" "artifacts/rep${{ matrix.rep }}-docker-results" || true
+          sudo cp -r "${LAB}-docker/results" "artifacts/rep${{ matrix.rep }}-docker-results" 2>/dev/null || true
           sudo chown -R "$(id -u):$(id -g)" artifacts || true
-          r=$(ls -1 "${LAB}-docker"/results/*/capacity-external.json 2>/dev/null | tail -n1)
+          r=$(ls -1 "artifacts/rep${{ matrix.rep }}-docker-results"/*/capacity-external.json 2>/dev/null | tail -n1)
           test -n "$r" || { echo "no docker report produced (see uploaded *-docker-results logs)"; exit 1; }
           python3 scripts/native-lab/capacity_external_validate.py "$r"
           cp "$r" "artifacts/rep${{ matrix.rep }}-docker.json"
