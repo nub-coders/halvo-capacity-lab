@@ -70,27 +70,31 @@ jobs:
       - name: Native capacity trial
         run: sudo -E bash scripts/native-lab/vm-capacity.sh --external-capacity-native "${LAB}-native"
 
-      - name: Validate + stash native report
+      - name: Stash native results (logs always, then validate report)
         if: always()
         run: |
+          d=$(ls -1d "${LAB}-native"/results/* 2>/dev/null | tail -n1)
+          [ -n "$d" ] && sudo cp -r "$d" "artifacts/rep${{ matrix.rep }}-native-results" || true
+          sudo chown -R "$(id -u):$(id -g)" artifacts || true
           r=$(ls -1 "${LAB}-native"/results/*/capacity-external.json 2>/dev/null | tail -n1)
-          test -n "$r" || { echo "no native report produced"; exit 1; }
+          test -n "$r" || { echo "no native report produced (see uploaded *-native-results logs)"; exit 1; }
           python3 scripts/native-lab/capacity_external_validate.py "$r"
-          sudo cp "$r" "artifacts/rep${{ matrix.rep }}-native.json"
-          sudo chown -R "$(id -u):$(id -g)" artifacts
+          cp "$r" "artifacts/rep${{ matrix.rep }}-native.json"
           sudo rm -rf "${LAB}-native"
 
       - name: Docker capacity trial
         run: sudo -E bash scripts/native-lab/vm-capacity.sh --external-capacity-docker "${LAB}-docker"
 
-      - name: Validate + stash docker report
+      - name: Stash docker results (logs always, then validate report)
         if: always()
         run: |
+          d=$(ls -1d "${LAB}-docker"/results/* 2>/dev/null | tail -n1)
+          [ -n "$d" ] && sudo cp -r "$d" "artifacts/rep${{ matrix.rep }}-docker-results" || true
+          sudo chown -R "$(id -u):$(id -g)" artifacts || true
           r=$(ls -1 "${LAB}-docker"/results/*/capacity-external.json 2>/dev/null | tail -n1)
-          test -n "$r" || { echo "no docker report produced"; exit 1; }
+          test -n "$r" || { echo "no docker report produced (see uploaded *-docker-results logs)"; exit 1; }
           python3 scripts/native-lab/capacity_external_validate.py "$r"
-          sudo cp "$r" "artifacts/rep${{ matrix.rep }}-docker.json"
-          sudo chown -R "$(id -u):$(id -g)" artifacts
+          cp "$r" "artifacts/rep${{ matrix.rep }}-docker.json"
           sudo rm -rf "${LAB}-docker"
 
       - uses: actions/upload-artifact@v4
@@ -98,7 +102,7 @@ jobs:
         with:
           name: capacity-rep-${{ matrix.rep }}
           path: artifacts/
-          if-no-files-found: error
+          if-no-files-found: warn
 
   aggregate:
     needs: capacity

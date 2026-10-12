@@ -27,7 +27,7 @@ def require_lab():
     result = subprocess.run(
         ["systemd-detect-virt", "--vm"], capture_output=True, text=True, timeout=10, check=False
     )
-    if result.returncode != 0 or result.stdout.strip() != "qemu":
+    if result.returncode != 0 or result.stdout.strip() not in ("qemu", "kvm"):
         raise SystemExit("Refusing to run outside the disposable QEMU VM")
     return "qemu"
 
