@@ -79,7 +79,7 @@ jobs:
           test -n "$r" || { echo "no native report produced (see uploaded *-native-results logs)"; exit 1; }
           python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['scope']=='request-capacity' and d['passed'] and d['collection_valid'], d.get('errors'); print('native trial OK: capacity_rps=%s evidence=%s' % (d['capacity_rps'], d['capacity_evidence']))" "$r"
           cp "$r" "artifacts/rep${{ matrix.rep }}-native.json"
-          sudo cp "${LAB}-native/results"/*/launcher-cleanup.json "artifacts/rep${{ matrix.rep }}-native-launcher-cleanup.json"
+          cp "artifacts/rep${{ matrix.rep }}-native-results"/*/launcher-cleanup.json "artifacts/rep${{ matrix.rep }}-native-launcher-cleanup.json"
           sudo chown "$(id -u):$(id -g)" "artifacts/rep${{ matrix.rep }}-native-launcher-cleanup.json"
           sudo chmod 0644 "artifacts/rep${{ matrix.rep }}-native-launcher-cleanup.json"
           sudo rm -rf "${LAB}-native"
@@ -96,7 +96,7 @@ jobs:
           test -n "$r" || { echo "no docker report produced (see uploaded *-docker-results logs)"; exit 1; }
           python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['scope']=='request-capacity' and d['passed'] and d['collection_valid'], d.get('errors'); print('docker trial OK: capacity_rps=%s evidence=%s' % (d['capacity_rps'], d['capacity_evidence']))" "$r"
           cp "$r" "artifacts/rep${{ matrix.rep }}-docker.json"
-          sudo cp "${LAB}-docker/results"/*/launcher-cleanup.json "artifacts/rep${{ matrix.rep }}-docker-launcher-cleanup.json"
+          cp "artifacts/rep${{ matrix.rep }}-docker-results"/*/launcher-cleanup.json "artifacts/rep${{ matrix.rep }}-docker-launcher-cleanup.json"
           sudo chown "$(id -u):$(id -g)" "artifacts/rep${{ matrix.rep }}-docker-launcher-cleanup.json"
           sudo chmod 0644 "artifacts/rep${{ matrix.rep }}-docker-launcher-cleanup.json"
           sudo rm -rf "${LAB}-docker"
