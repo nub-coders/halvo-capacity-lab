@@ -1,0 +1,38 @@
+// Experimental x86-64 policy for the Phase 0 fixtures. Not a production policy.
+// clone3 falls back to clone; namespace creation and privileged syscalls stay denied.
+POLICY fixtures {
+  ERRNO(38) { clone3 },
+  ALLOW {
+    read, write, readv, writev, pread64, pwrite64, close, close_range,
+    open, openat, access, faccessat, faccessat2, newstat, newlstat, newfstat, newfstatat, statx,
+    lseek, getdents, getdents64, readlink, readlinkat, getcwd, chdir, fchdir,
+    mkdir, mkdirat, rmdir, unlink, unlinkat, rename, renameat, renameat2,
+    link, linkat, symlink, symlinkat, chmod, fchmod, fchmodat, chown, fchown, lchown,
+    fchownat, umask, truncate, ftruncate, fallocate, fsync, fdatasync, sync_file_range,
+    // Unprivileged xattr access is required by common build tooling (e.g. Python
+    // shutil.copystat, setuptools); the kernel still guards security.* names.
+    getxattr, lgetxattr, fgetxattr, listxattr, llistxattr, flistxattr,
+    setxattr, lsetxattr, fsetxattr, removexattr, lremovexattr, fremovexattr,
+    statfs, fstatfs, utime, utimes, utimensat, fcntl, flock, ioctl,
+    mmap, mprotect, munmap, mremap, madvise, brk, mincore,
+    rt_sigaction, rt_sigprocmask, rt_sigreturn, rt_sigsuspend, rt_sigtimedwait,
+    sigaltstack, kill, tkill, tgkill, signalfd4,
+    pipe, pipe2, dup, dup2, dup3, poll, ppoll, select, pselect6,
+    epoll_create, epoll_create1, epoll_ctl, epoll_wait, epoll_pwait, epoll_pwait2,
+    eventfd, eventfd2, inotify_init, inotify_init1, inotify_add_watch, inotify_rm_watch,
+    socket, socketpair, connect, bind, listen, accept, accept4, shutdown,
+    getsockname, getpeername, setsockopt, getsockopt, sendto, recvfrom, sendmsg, recvmsg,
+    sendmmsg, recvmmsg, sendfile64, splice, tee, copy_file_range,
+    clone { (clone_flags & 0x7e020080) == 0 }, fork, vfork, execve, execveat,
+    wait4, waitid, exit, exit_group, set_tid_address, set_robust_list, get_robust_list,
+    futex, rseq, membarrier, arch_prctl, prctl, prlimit64, getrlimit, setrlimit,
+    getpid, getppid, gettid, getuid, geteuid, getgid, getegid, getgroups,
+    getpgrp, getpgid, getsid, setsid, setpgid, capget,
+    newuname, sysinfo, getrusage, times, getpriority, setpriority,
+    sched_getaffinity, sched_setaffinity, sched_yield, sched_getparam, sched_getscheduler,
+    getrandom, gettimeofday, time, clock_gettime, clock_getres, clock_nanosleep,
+    nanosleep, alarm, getitimer, setitimer, timer_create, timer_settime, timer_delete,
+    timerfd_create, timerfd_settime, timerfd_gettime, restart_syscall
+  }
+}
+USE fixtures DEFAULT ERRNO(1)

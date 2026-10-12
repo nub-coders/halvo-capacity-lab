@@ -1,0 +1,30 @@
+{
+  "revision": "3.13.15",
+  "source_url": "https://www.python.org/ftp/python/3.13.15/Python-3.13.15.tgz",
+  "source_sha256": "c28d9d213c09b5b5ab2c29812950e12f746999e099b82894231be954b26baed9",
+  "install_prefix": "/opt/runtimes/python-3.13.15",
+  "configure_flags": [
+    "--prefix=/opt/runtimes/python-3.13.15",
+    "--with-ensurepip=install",
+    "--disable-test-modules",
+    "--config-cache"
+  ],
+  "make_jobs": 4,
+  "build_resources_note": "guest gets HALVO_LAB_TREE_CPUS host CPUs in --runtime-tree-only mode (default 2 for the calibrated measurement shape); make_jobs was chosen for the 4-CPU build window and is within the manifest's own 1..8 bound",
+  "pip_validation": {
+    "site_target": "/app/site",
+    "requirements": [
+      {"name": "requests", "version": "2.32.5", "wheel": "requests-2.32.5-py3-none-any.whl", "sha256": "2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"},
+      {"name": "charset-normalizer", "version": "3.4.3", "wheel": "charset_normalizer-3.4.3-py3-none-any.whl", "sha256": "ce571ab16d890d23b5c278547ba694193a45011ff86a9162a71307ed9f86759a"},
+      {"name": "idna", "version": "3.10", "wheel": "idna-3.10-py3-none-any.whl", "sha256": "946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3"},
+      {"name": "urllib3", "version": "2.5.0", "wheel": "urllib3-2.5.0-py3-none-any.whl", "sha256": "e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"},
+      {"name": "certifi", "version": "2025.8.3", "wheel": "certifi-2025.8.3-py3-none-any.whl", "sha256": "f6c12493cfb1b06ba2ff328595af9350c65d6644968e5d3a2ffd78699af217a5"}
+    ]
+  },
+  "notes": [
+    "Source sha256 computed from a TLS download of python.org on 2026-09-30 and pinned here; the guest verifies the bytes it fetches against this pin, so a changed upstream tarball fails closed.",
+    "No PGO (--enable-optimizations) under the TCG time budget; the evidence records this omission.",
+    "Prefix mirrors the runner's runtime_tree() layout: /opt/runtimes/<kind>-<revision> (scripts/native-runner/paths.py).",
+    "pip validation follows the phase-0 pattern: the guest downloads the pinned wheels (hash-checked), and NsJail installs them offline from those artifacts — the egress-in-jail question stays with catalog blocker 6."
+  ]
+}

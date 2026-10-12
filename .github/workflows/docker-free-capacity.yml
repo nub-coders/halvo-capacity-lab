@@ -1,0 +1,123 @@
+name: docker-free-capacity
+
+# Manual only. Native-vs-docker paired request-capacity gate on KVM-capable
+# hosted runners. Each matrix job runs BOTH backends on the same runner, so the
+# pairing is same-host. Measurement only; no production or Docker change.
+on:
+  workflow_dispatch:
+    inputs:
+      repetitions:
+        description: "Paired repetitions (each job = native+docker on one runner)"
+        type: choice
+        options: ["3", "1", "2"]
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-free-capacity
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      reps: ${{ steps.m.outputs.reps }}
+    steps:
+      - id: m
+        run: |
+          case "${{ inputs.repetitions }}" in
+            1) reps='[1]' ;;
+            2) reps='[1,2]' ;;
+            *) reps='[1,2,3]' ;;
+          esac
+          echo "reps=$reps" >> "$GITHUB_OUTPUT"
+
+  capacity:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        rep: ${{ fromJSON(needs.plan.outputs.reps) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      LAB: /var/tmp/halvo-native-vm-cap-${{ matrix.rep }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require usable KVM (TCG capacity is not a valid gate per the runbook)
+        run: |
+          sudo sh -c '[ -r /dev/kvm ] && [ -w /dev/kvm ]' \
+            || { echo "No usable /dev/kvm for root; refusing to run an invalid TCG trial."; exit 1; }
+          ls -l /dev/kvm
+
+      - name: Reclaim disk for the guests
+        run: |
+          sudo rm -rf /opt/hostedtoolcache /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          sudo docker system prune -af || true
+          df -h /
+
+      - name: Freeze a self-consistent source manifest
+        working-directory: scripts/native-lab
+        run: |
+          rm -f SHA256SUMS
+          sha256sum *.py *.sh *.json *.policy *.Dockerfile > SHA256SUMS
+          sha256sum -c SHA256SUMS >/dev/null && echo "manifest self-verifies"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+
+      - name: Native capacity trial
+        run: sudo -E bash scripts/native-lab/vm-capacity.sh --external-capacity-native "${LAB}-native"
+
+      - name: Validate + stash native report
+        if: always()
+        run: |
+          r=$(ls -1 "${LAB}-native"/results/*/capacity-external.json 2>/dev/null | tail -n1)
+          test -n "$r" || { echo "no native report produced"; exit 1; }
+          python3 scripts/native-lab/capacity_external_validate.py "$r"
+          sudo cp "$r" "artifacts/rep${{ matrix.rep }}-native.json"
+          sudo chown -R "$(id -u):$(id -g)" artifacts
+          sudo rm -rf "${LAB}-native"
+
+      - name: Docker capacity trial
+        run: sudo -E bash scripts/native-lab/vm-capacity.sh --external-capacity-docker "${LAB}-docker"
+
+      - name: Validate + stash docker report
+        if: always()
+        run: |
+          r=$(ls -1 "${LAB}-docker"/results/*/capacity-external.json 2>/dev/null | tail -n1)
+          test -n "$r" || { echo "no docker report produced"; exit 1; }
+          python3 scripts/native-lab/capacity_external_validate.py "$r"
+          sudo cp "$r" "artifacts/rep${{ matrix.rep }}-docker.json"
+          sudo chown -R "$(id -u):$(id -g)" artifacts
+          sudo rm -rf "${LAB}-docker"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capacity-rep-${{ matrix.rep }}
+          path: artifacts/
+          if-no-files-found: error
+
+  aggregate:
+    needs: capacity
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: capacity-rep-*
+          path: reports
+          merge-multiple: true
+      - name: Compare the paired reports
+        run: |
+          ls -1 reports/*.json
+          python3 scripts/native-lab/capacity_compare.py reports/*.json | tee comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capacity-comparison
+          path: comparison.json
+          if-no-files-found: warn
