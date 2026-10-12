@@ -79,6 +79,7 @@ jobs:
           test -n "$r" || { echo "no native report produced (see uploaded *-native-results logs)"; exit 1; }
           python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['scope']=='request-capacity' and d['passed'] and d['collection_valid'], d.get('errors'); print('native trial OK: capacity_rps=%s evidence=%s' % (d['capacity_rps'], d['capacity_evidence']))" "$r"
           cp "$r" "artifacts/rep${{ matrix.rep }}-native.json"
+          sudo cp "${LAB}-native/results"/*/launcher-cleanup.json "artifacts/rep${{ matrix.rep }}-native-launcher-cleanup.json"
           sudo rm -rf "${LAB}-native"
 
       - name: Docker capacity trial
@@ -93,6 +94,7 @@ jobs:
           test -n "$r" || { echo "no docker report produced (see uploaded *-docker-results logs)"; exit 1; }
           python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['scope']=='request-capacity' and d['passed'] and d['collection_valid'], d.get('errors'); print('docker trial OK: capacity_rps=%s evidence=%s' % (d['capacity_rps'], d['capacity_evidence']))" "$r"
           cp "$r" "artifacts/rep${{ matrix.rep }}-docker.json"
+          sudo cp "${LAB}-docker/results"/*/launcher-cleanup.json "artifacts/rep${{ matrix.rep }}-docker-launcher-cleanup.json"
           sudo rm -rf "${LAB}-docker"
 
       - uses: actions/upload-artifact@v4
@@ -116,6 +118,11 @@ jobs:
       - name: Validate the gate and compare the pairs
         run: |
           ls -1 reports/*.json
+          # Every trial must have launched and shut down gracefully; receipts are
+          # byte-identical fixed JSON, so one shared sibling satisfies the validator.
+          sums=$(sha256sum reports/rep*-launcher-cleanup.json | awk '{print $1}' | sort -u)
+          test "$(echo "$sums" | wc -l)" = 1 || { echo "launcher cleanup receipts differ"; exit 1; }
+          cp "$(ls reports/rep*-launcher-cleanup.json | head -n1)" reports/launcher-cleanup.json
           set -o pipefail
           python3 scripts/native-lab/capacity_external_validate.py reports/*.json | tee gate-validation.json
           python3 scripts/native-lab/capacity_compare.py reports/*.json | tee comparison.json
