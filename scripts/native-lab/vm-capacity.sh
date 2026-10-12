@@ -164,7 +164,7 @@ if [ -n "$capacity_backend" ] || "$capacity_preflight"; then
   payload+=(capacity.py capacity_client.py capacity_fixtures.py capacity_guest.py capacity_relay.py)
 fi
 if [ "$capacity_backend" = docker ]; then
-  payload+=(prepare-capacity-docker.sh capacity.Dockerfile)
+  payload+=(prepare-capacity-docker.sh capacity.Dockerfile provision-docker-reference.sh benchmark.Dockerfile)
 fi
 if "$capacity_preflight"; then
   payload+=(capacity_preflight.py)
@@ -370,9 +370,14 @@ if [ -n "$external_mode" ]; then
   ssh_guest "sudo install -d -m 0755 /results/external-$(cat "$lab_dir/vm-id")"
   image_args=()
   if [ "$capacity_backend" = docker ]; then
-    timeout --kill-after=10s 10m ssh "${ssh_args[@]}" \
-      'if sudo test -f /results/capacity-image.json; then sudo bash /opt/halvo-lab/prepare-capacity-docker.sh --check; else sudo bash /opt/halvo-lab/prepare-capacity-docker.sh; fi' \
-      > "$result_dir/capacity-image.log" 2>&1 || external_status=$?
+    timeout --kill-after=10s 40m ssh "${ssh_args[@]}" \
+      'if sudo bash /opt/halvo-lab/provision-docker-reference.sh --check; then :; else sudo timeout --kill-after=10s 39m bash /opt/halvo-lab/provision-docker-reference.sh; fi' \
+      > "$result_dir/docker-reference-provision.log" 2>&1 || external_status=$?
+    if [ "$external_status" = 0 ]; then
+      timeout --kill-after=10s 10m ssh "${ssh_args[@]}" \
+        'if sudo test -f /results/capacity-image.json; then sudo bash /opt/halvo-lab/prepare-capacity-docker.sh --check; else sudo bash /opt/halvo-lab/prepare-capacity-docker.sh; fi' \
+        > "$result_dir/capacity-image.log" 2>&1 || external_status=$?
+    fi
     if [ "$external_status" = 0 ]; then
       derived="$(ssh_guest 'sudo cat /results/capacity-image-id')"
       [[ "$derived" =~ ^sha256:[0-9a-f]{64}$ ]] || external_status=1
